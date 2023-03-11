@@ -3,6 +3,7 @@ import pandas as pd
 import datetime
 import matplotlib.pyplot as plt
 from strategies import MyStrategy
+
 class PandasData_more(bt.feeds.PandasData):
     lines = ('rate',) # 要添加的线
     # 设置 line 在数据源上的列位置
@@ -19,25 +20,32 @@ class PandasData_more(bt.feeds.PandasData):
         ('openinterest', -1),
         ('rate', -1),
         )
-    # -1表示自动按列明匹配数据，也可以设置为线在数据源中列的位置索引 (('pe',6),('pb',7),)
-# class TestStrategy(bt.Strategy):
-#     def __init__(self):
-#         print("--------- 打印 self.datas 第一个数据表格的 lines ----------")
-#         print(self.data0.lines.getlinealiases())
-#         print("rate", self.data0.lines.rate[0])
-        
+    
 data1 = pd.read_csv('./data/1.csv')
 data1['open_time'] = pd.to_datetime(data1['open_time'])
 # 导入的数据 data1 中
 cerebro = bt.Cerebro()
-st_date = datetime.datetime(2019,1,2)
-ed_date = datetime.datetime(2021,1,28)
+cerebro.addobserver(bt.observers.DrawDown)
+initial_cash = 1000
+cerebro.broker.set_cash(initial_cash)
 datafeed1 = PandasData_more(dataname=data1)
 cerebro.adddata(datafeed1, name='600466.SH')
+cerebro.addanalyzer(bt.analyzers.TimeDrawDown, _name='_TimeDrawDown')
+cerebro.addanalyzer(bt.analyzers.TimeReturn, _name='_TimeReturn')
 cerebro.addstrategy(MyStrategy)
-rasult = cerebro.run()
+results = cerebro.run()
 
-# 画出回测结果的图像
-cerebro.plot()
+colors = ['#729ece', '#ff9e4a', '#67bf5c', '#ed665d', '#ad8bc9', '#a8786e', '#ed97ca', '#a2a2a2', '#cdcc5d', '#6dccda']
+tab10_index = [3, 0, 2, 1, 2, 4, 5, 6, 7, 8, 9]
+cerebro.plot(iplot=False,  
+              style='line', 
+              lcolors=colors ,
+              plotdist=0.1, 
+              bartrans=0.2, 
+              volup='#ff9896', 
+              voldown='#98df8a', 
+              loc='#5f5a41',
+              grid=False)
+# cerebro.plot(style='candlestick', iplot=False, use='tkinter')
 plt.show()
  
