@@ -95,7 +95,6 @@ class MyStrategy(bt.Strategy):
             if (up_precent > 0.02 or self.trend == 0) and close < self.avg_price:
                 self.buy(size=-position)
                 self.cover = 1
-                print(self.low_price)
                 print(f'平仓，空,数量{position}，价格{close},up_precent{up_precent},平均成本{self.avg_price}')
                 self.init()
                 
@@ -176,14 +175,7 @@ class MyStrategy(bt.Strategy):
             self.total_piece += 1
             self.avg_price = (-position * self.avg_price + self.one_piece_money) / (-position + qty)
             print(f'顺势加仓，空,数量{qty}，价格{close}')
-        
-        
-                
-            
-            
-        
-
-
+    
     def notify_order(self, order):
         if order.status == order.Completed:
             if order.isbuy():
@@ -206,9 +198,6 @@ class MyStrategy(bt.Strategy):
 
     def stop(self):
         print('---------stop----------')
-        print(bt.num2date(self.data.datetime[0]).isoformat())
-        print('getcash 当前可用资金', self.broker.getcash())
-        print('getvalue 当前总资产', self.broker.getvalue())
         print(bt.num2date(self.data.datetime[-1]).isoformat())
         print('self.stats 当前可用资金', self.stats.broker.cash[0])
         print('self.stats 当前总资产', self.stats.broker.value[0])

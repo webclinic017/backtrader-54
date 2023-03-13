@@ -3,7 +3,7 @@ import pandas as pd
 import datetime
 import matplotlib.pyplot as plt
 from strategies import MyStrategy
-symbol = 'RLCUSDT'
+symbol = 'WAVESUSDT'
 class PandasData_more(bt.feeds.PandasData):
     lines = ('rate',) # 要添加的线
     # 设置 line 在数据源上的列位置
