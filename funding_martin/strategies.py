@@ -4,7 +4,7 @@ import pandas as pd
         
 class MyStrategy(bt.Strategy):
     params = (
-        ('margin', 1),
+        ('margin', 0.1),
         ('slice', 10),
     )
 
@@ -22,11 +22,12 @@ class MyStrategy(bt.Strategy):
         self.trend = 0 #趋势信号，多为1，空为-1，funding < ema14 做多， funding > ema14 做空
         self.buy_time = 0 #买入次数
         self.high_price = 0 #最高价格
-        self.low_price = 0 #最低价格
+        self.low_price = 99999 #最低价格
         self.last_buy_price = 0 #上次买入价格
         self.avg_price = 0 #持仓平均价格
         self.one_piece_money = 0 #一手持仓金额
         self.total_piece = 0 #总共购买了的份数
+        self.cover = 0 # 当前阶段有平仓
 
 
     def get_size(self):
@@ -42,23 +43,29 @@ class MyStrategy(bt.Strategy):
     def init(self):
         self.buy_time = 0 #买入次数
         self.high_price = 0 #最高价格
-        self.low_price = 0 #最低价格
+        self.low_price = 99999 #最低价格
         self.last_buy_price = 0 #上次买入价格
         self.avg_price = 0 #持仓平均价格
         self.one_piece_money = 0 
         self.total_piece = 0
         
     def next(self):
+        self.cover = 0
         #判断当前处于的趋势
         now_funding = self.data.lines.rate[0]
         pre_funding = self.data.lines.rate[-1]
         now_funding_ema = self.funding_ema[0]
         pre_funding_ema = self.funding_ema[-1]
-        
-        if now_funding < now_funding_ema and pre_funding >= pre_funding_ema:
+        datetime =  bt.num2date(self.data.datetime[0])
+        if now_funding < now_funding_ema and pre_funding >= pre_funding_ema and now_funding <= -0.1 * 0.01:
             self.trend = 1 #买入信号
-        if now_funding > now_funding_ema and pre_funding <= pre_funding_ema:
+            # print(f'更新买入信号，{datetime}')
+        if now_funding > now_funding_ema and pre_funding <= pre_funding_ema and now_funding <= -0.1 * 0.01:
             self.trend = -1 #卖出信号
+            # print(f'更新卖出信号，{datetime}')
+        if now_funding > -0.1 * 0.01:
+            self.trend = 0 #资金费率又开始无规律波动
+            # print(f'更新无波动信号，{datetime}')
         
         close = self.data.lines.close[0]
         high = self.data.lines.high[0]
@@ -74,24 +81,27 @@ class MyStrategy(bt.Strategy):
         self.low_price = min(self.low_price, low)
         #检测是否平仓
         if position > 0 :
-            # 最高点下跌2%，且有利润
+            # 最高点下跌2%，或者趋势改变，且有利润
             down_precent = (self.high_price - close) / close 
-            if down_precent > 0.02 and close > self.avg_price:
+            if (down_precent > 0.02 or self.trend == 0) and close > self.avg_price: 
                 self.sell(size=position)
                 self.init()
-                print(f'平仓，多,数量{position}，价格{close}')
+                self.cover = 1
+                print(f'平仓，多,数量{position}，价格{close}，down_precent{down_precent}')
                 
         if position < 0 :
             # 最低点上涨2%，且有利润
             up_precent = (close -self.low_price) / close 
-            if up_precent > 0.02 and close < self.avg_price:
-                self.sell(size=-position)
+            if (up_precent > 0.02 or self.trend == 0) and close < self.avg_price:
+                self.buy(size=-position)
                 self.init()
-                print(f'平仓，空,数量{position}，价格{close}')
+                self.cover = 1
+                print(self.low_price)
+                print(f'平仓，空,数量{position}，价格{close},up_precent{up_precent}')
                 
         #初始开仓买入
-        if self.trend == 1 and self.avg_price == 0 and now_funding < -0.1 * 0.01 and close > ema + atr:
-            money = self.broker.get_cash()
+        if self.trend == 1 and self.avg_price == 0 and now_funding < -0.1 * 0.01 and close > ema + atr and self.cover == 0 :
+            money = self.broker.get_cash() / self.params.margin
             self.one_piece_money = money / self.params.slice
             qty = self.one_piece_money / close
             self.buy(size=qty)
@@ -101,8 +111,8 @@ class MyStrategy(bt.Strategy):
             print(f'初始买入，多,数量{qty}，价格{close}')
         
         #初始开仓卖出
-        if self.trend == -1 and self.avg_price == 0 and now_funding < -0.1 * 0.01 and close < ema - atr:
-            money = self.broker.get_cash()
+        if self.trend == -1 and self.avg_price == 0 and now_funding < -0.1 * 0.01 and close < ema - atr and self.cover == 0:
+            money = self.broker.get_cash() / self.params.margin
             self.one_piece_money = money / self.params.slice
             qty = self.one_piece_money / close
             self.sell(size=qty)
@@ -112,7 +122,7 @@ class MyStrategy(bt.Strategy):
             print(f'初始买入，空,数量{qty}，价格{close}')
             
         #逆趋势加仓/多
-        if position > 0 and self.trend == -1 and self.total_piece<=8:
+        if position > 0 and self.trend == -1 and self.total_piece <= self.params.slice - 2  and self.cover == 0:
             # 先看是否有利润，能不能平仓
             if close > self.avg_price:
                 self.sell(size = position)
@@ -131,7 +141,7 @@ class MyStrategy(bt.Strategy):
                     print(f'逆势加仓，多,数量{qty}，价格{close}')
                     
         #逆趋势加仓/空
-        if position < 0 and self.trend == 1 and self.total_piece <= 8:
+        if position < 0 and self.trend == 1 and self.total_piece <= self.params.slice - 2 and self.cover == 0:
             # 先看是否有利润，能不能平仓
             if close < self.avg_price:
                 self.buy(size = -position)
@@ -150,7 +160,7 @@ class MyStrategy(bt.Strategy):
                     print(f'逆势加仓，空,数量{qty}，价格{close}')
         
         #顺势加仓/多
-        if position > 0 and self.trend == 1 and self.total_piece <= 9 and close > self.last_buy_price + atr:
+        if position > 0 and self.trend == 1 and self.total_piece <= self.params.slice - 1 and close > self.last_buy_price + atr and self.cover == 0:
             qty = self.one_piece_money / close
             self.buy(size=qty)
             self.last_buy_price = self.data.close[0]
@@ -159,7 +169,7 @@ class MyStrategy(bt.Strategy):
             print(f'顺势加仓，多,数量{qty}，价格{close}')
             
         #顺势加仓/空
-        if position < 0 and self.trend == -1 and self.total_piece <= 9 and close < self.last_buy_price - atr:
+        if position < 0 and self.trend == -1 and self.total_piece <= self.params.slice - 1 and close < self.last_buy_price - atr and self.cover == 0:
             qty = self.one_piece_money / close
             self.sell(size=qty)
             self.last_buy_price = self.data.close[0]
