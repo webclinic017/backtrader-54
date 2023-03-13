@@ -122,7 +122,7 @@ class MyStrategy(bt.Strategy):
             print(f'初始买入，空,数量{qty}，价格{close}')
             
         #逆趋势加仓/多
-        if position > 0 and self.trend == -1 and self.total_piece <= self.params.slice - 2  and self.cover == 0:
+        if position > 0 and self.trend != 1 and self.total_piece <= self.params.slice - 2  and self.cover == 0:
             # 先看是否有利润，能不能平仓
             if close > self.avg_price:
                 self.sell(size = position)
@@ -141,7 +141,7 @@ class MyStrategy(bt.Strategy):
                     print(f'逆势加仓，多,数量{qty}，价格{close}')
                     
         #逆趋势加仓/空
-        if position < 0 and self.trend == 1 and self.total_piece <= self.params.slice - 2 and self.cover == 0:
+        if position < 0 and self.trend != -1 and self.total_piece <= self.params.slice - 2 and self.cover == 0:
             # 先看是否有利润，能不能平仓
             if close < self.avg_price:
                 self.buy(size = -position)
@@ -149,7 +149,7 @@ class MyStrategy(bt.Strategy):
                 print(f'趋势转变，平空，qty{position}')
             #否则逆势加仓,底部要反弹1/2个atr,相比上次购买上涨了1个atr
             else:
-                if close < self.last_buy_price + atr and close < self.high_price - 0.5 * atr:
+                if close > self.last_buy_price + atr and close < self.high_price - 0.5 * atr:
                     qty = self.one_piece_money * 2 / close
                     self.sell(size=qty)
                     #更新平均持仓价
