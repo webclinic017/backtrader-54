@@ -94,10 +94,10 @@ class MyStrategy(bt.Strategy):
             up_precent = (close -self.low_price) / close 
             if (up_precent > 0.02 or self.trend == 0) and close < self.avg_price:
                 self.buy(size=-position)
-                self.init()
                 self.cover = 1
                 print(self.low_price)
-                print(f'平仓，空,数量{position}，价格{close},up_precent{up_precent}')
+                print(f'平仓，空,数量{position}，价格{close},up_precent{up_precent},平均成本{self.avg_price}')
+                self.init()
                 
         #初始开仓买入
         if self.trend == 1 and self.avg_price == 0 and now_funding < -0.1 * 0.01 and close > ema + atr and self.cover == 0 :
@@ -165,7 +165,7 @@ class MyStrategy(bt.Strategy):
             self.buy(size=qty)
             self.last_buy_price = self.data.close[0]
             self.total_piece += 1
-            self.avg_price = (position * self.avg_price + self.one_piece_money * 2) / (position + qty)
+            self.avg_price = (position * self.avg_price + self.one_piece_money) / (position + qty)
             print(f'顺势加仓，多,数量{qty}，价格{close}')
             
         #顺势加仓/空
@@ -174,7 +174,7 @@ class MyStrategy(bt.Strategy):
             self.sell(size=qty)
             self.last_buy_price = self.data.close[0]
             self.total_piece += 1
-            self.avg_price = (-position * self.avg_price + self.one_piece_money * 2) / (-position + qty)
+            self.avg_price = (-position * self.avg_price + self.one_piece_money) / (-position + qty)
             print(f'顺势加仓，空,数量{qty}，价格{close}')
         
         

@@ -3,7 +3,7 @@ import pandas as pd
 import datetime
 import matplotlib.pyplot as plt
 from strategies import MyStrategy
-
+symbol = 'DUSKUSDT'
 class PandasData_more(bt.feeds.PandasData):
     lines = ('rate',) # 要添加的线
     # 设置 line 在数据源上的列位置
@@ -21,7 +21,7 @@ class PandasData_more(bt.feeds.PandasData):
         ('rate', -1),
         )
     
-data1 = pd.read_csv('./data/1.csv')
+data1 = pd.read_csv(f'./data/{symbol}.csv')
 data1['open_time'] = pd.to_datetime(data1['open_time'])
 # 导入的数据 data1 中
 cerebro = bt.Cerebro()
