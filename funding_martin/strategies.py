@@ -77,18 +77,19 @@ class MyStrategy(bt.Strategy):
         position = self.broker.getposition(self.data).size
         
         #更新最高价，最低价
-        self.high_price = max(self.high_price, high)
-        self.low_price = min(self.low_price, low)
+        if position != 0:
+            self.high_price = max(self.high_price, high)
+            self.low_price = min(self.low_price, low)
         #检测是否平仓
         if position > 0 :
-            if (close < ema - atr or self.trend == 0) and close > self.avg_price: 
+            if (close < ema - atr or self.trend == 0) and close > self.avg_price * 1.01: 
                 self.sell(size=position)
                 self.init()
                 self.cover = 1
                 print(f'平仓，多,数量{position}，价格{close}')
                 
         if position < 0 :
-            if (close > ema + atr or self.trend == 0) and close < self.avg_price:
+            if (close > ema + atr or self.trend == 0) and close < self.avg_price * 0.99:
                 self.buy(size=-position)
                 self.cover = 1
                 print(f'平仓，空,数量{position}，价格{close},平均成本{self.avg_price}')
