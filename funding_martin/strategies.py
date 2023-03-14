@@ -82,21 +82,21 @@ class MyStrategy(bt.Strategy):
             self.low_price = min(self.low_price, low)
         #检测是否平仓
         if position > 0 :
-            if (close < ema - atr or self.trend == 0) and close > self.avg_price * 1.01: 
+            if (close < ema - atr or self.trend != 1) and close > self.avg_price * 1.01: 
                 self.sell(size=position)
                 self.init()
                 self.cover = 1
                 print(f'平仓，多,数量{position}，价格{close}')
                 
         if position < 0 :
-            if (close > ema + atr or self.trend == 0) and close < self.avg_price * 0.99:
+            if (close > ema + atr or self.trend != -1) and close < self.avg_price * 0.99:
                 self.buy(size=-position)
                 self.cover = 1
                 print(f'平仓，空,数量{position}，价格{close},平均成本{self.avg_price}')
                 self.init()
                 
         #初始开仓买入
-        if self.trend == 1 and self.avg_price == 0 and now_funding < -0.1 * 0.01 and close > ema + atr and self.cover == 0 :
+        if self.trend == 1 and self.avg_price == 0 and now_funding < -0.1 * 0.01 and close > ema + atr * 0.5 and self.cover == 0 :
             money = self.broker.get_cash() / self.params.margin
             self.one_piece_money = money / self.params.slice
             qty = self.one_piece_money / close
@@ -107,7 +107,7 @@ class MyStrategy(bt.Strategy):
             print(f'初始买入，多,数量{qty}，价格{close}')
         
         #初始开仓卖出
-        if self.trend == -1 and self.avg_price == 0 and now_funding < -0.1 * 0.01 and close < ema - atr and self.cover == 0:
+        if self.trend == -1 and self.avg_price == 0 and now_funding < -0.1 * 0.01 and close < ema - atr * 0.5 and self.cover == 0:
             money = self.broker.get_cash() / self.params.margin
             self.one_piece_money = money / self.params.slice
             qty = self.one_piece_money / close
