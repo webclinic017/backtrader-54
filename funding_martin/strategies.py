@@ -81,21 +81,17 @@ class MyStrategy(bt.Strategy):
         self.low_price = min(self.low_price, low)
         #检测是否平仓
         if position > 0 :
-            # 最高点下跌2%，或者趋势改变，且有利润
-            down_precent = (self.high_price - close) / close 
-            if (down_precent > 0.02 or self.trend == 0) and close > self.avg_price: 
+            if (close < ema - atr or self.trend == 0) and close > self.avg_price: 
                 self.sell(size=position)
                 self.init()
                 self.cover = 1
-                print(f'平仓，多,数量{position}，价格{close}，down_precent{down_precent}')
+                print(f'平仓，多,数量{position}，价格{close}')
                 
         if position < 0 :
-            # 最低点上涨2%，且有利润
-            up_precent = (close -self.low_price) / close 
-            if (up_precent > 0.02 or self.trend == 0) and close < self.avg_price:
+            if (close > ema + atr or self.trend == 0) and close < self.avg_price:
                 self.buy(size=-position)
                 self.cover = 1
-                print(f'平仓，空,数量{position}，价格{close},up_precent{up_precent},平均成本{self.avg_price}')
+                print(f'平仓，空,数量{position}，价格{close},平均成本{self.avg_price}')
                 self.init()
                 
         #初始开仓买入
@@ -121,42 +117,28 @@ class MyStrategy(bt.Strategy):
             print(f'初始买入，空,数量{qty}，价格{close}')
             
         #逆趋势加仓/多
-        if position > 0 and self.trend != 1 and self.total_piece <= self.params.slice - 2  and self.cover == 0:
-            # 先看是否有利润，能不能平仓
-            if close > self.avg_price:
-                self.sell(size = position)
-                self.init()
-                print(f'趋势转变，平多，qty{position}')
-            #否则逆势加仓,底部要反弹1/2个atr,相比上次购买下跌了1个atr
-            else:
-                if close < self.last_buy_price - atr and close > self.low_price + 0.5 * atr:
-                    qty = self.one_piece_money * 2 / close
-                    self.buy(size=qty)
-                    #更新平均持仓价
-                    self.avg_price = (position * self.avg_price + self.one_piece_money * 2) / (position + qty)
-                    #更新上次购买价格
-                    self.last_buy_price = self.data.close[0]
-                    self.total_piece += 2
-                    print(f'逆势加仓，多,数量{qty}，价格{close}')
+        if position > 0 and self.total_piece <= self.params.slice - 2  and self.cover == 0:
+            if close < self.last_buy_price - atr and close > self.low_price + 0.5 * atr:
+                qty = self.one_piece_money * 2 / close
+                self.buy(size=qty)
+                #更新平均持仓价
+                self.avg_price = (position * self.avg_price + self.one_piece_money * 2) / (position + qty)
+                #更新上次购买价格
+                self.last_buy_price = self.data.close[0]
+                self.total_piece += 2
+                print(f'逆势加仓，多,数量{qty}，价格{close}')
                     
         #逆趋势加仓/空
         if position < 0 and self.trend != -1 and self.total_piece <= self.params.slice - 2 and self.cover == 0:
-            # 先看是否有利润，能不能平仓
-            if close < self.avg_price:
-                self.buy(size = -position)
-                self.init()
-                print(f'趋势转变，平空，qty{position}')
-            #否则逆势加仓,底部要反弹1/2个atr,相比上次购买上涨了1个atr
-            else:
-                if close > self.last_buy_price + atr and close < self.high_price - 0.5 * atr:
-                    qty = self.one_piece_money * 2 / close
-                    self.sell(size=qty)
-                    #更新平均持仓价
-                    self.avg_price = (-position * self.avg_price + self.one_piece_money * 2) / (-position + qty)
-                    #更新上次购买价格
-                    self.last_buy_price = self.data.close[0]
-                    self.total_piece += 2
-                    print(f'逆势加仓，空,数量{qty}，价格{close}')
+            if close > self.last_buy_price + atr and close < self.high_price - 0.5 * atr:
+                qty = self.one_piece_money * 2 / close
+                self.sell(size=qty)
+                #更新平均持仓价
+                self.avg_price = (-position * self.avg_price + self.one_piece_money * 2) / (-position + qty)
+                #更新上次购买价格
+                self.last_buy_price = self.data.close[0]
+                self.total_piece += 2
+                print(f'逆势加仓，空,数量{qty}，价格{close}')
         
         #顺势加仓/多
         if position > 0 and self.trend == 1 and self.total_piece <= self.params.slice - 1 and close > self.last_buy_price + atr and self.cover == 0:
